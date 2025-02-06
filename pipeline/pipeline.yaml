@@ -1,0 +1,29 @@
+steps:
+  - name: WebScraper
+    type: web_scraper_step
+    start_url: https://www.city.arao.lg.jp/
+    user_agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 12_6_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.112 Safari/537.36
+    output_dir: ./output
+    progress_file: ./progress.json
+    save_every: 10
+    skip_flg: yes
+  - name: Xml Law to Json old step
+    xml_input_file: ./input_xml/108DF0000000054_20030501_414CO0000000277.xml
+    json_output_file: ./output_json/108DF0000000054_20030501_414CO0000000277.json
+    skip_flg: yes
+  - name: Xml Law to Json step
+    type: xml_law2json_step
+    xml_input_dir: ./input_xml
+    json_output_dir: ./output_json
+    skip_flg: yes
+  - name: LLM Tag
+    type: llm_tag_step
+    progress_file: ./progress.json
+    input_json_file: ./sample_json/108DF0000000054_20030501_414CO0000000277.json
+    output_json_file: ./sample_json/tag_108DF0000000054_20030501_414CO0000000277.json
+    llm_url: http://host.docker.internal:11434/v1/
+    llm_model: lucas2024/llama-3-elyza-jp-8b:q5_k_m
+    llm_api_key: ollama
+    llm_prompt_file: ./llm_tag_prompt.txt
+    skip_flg: no
+
