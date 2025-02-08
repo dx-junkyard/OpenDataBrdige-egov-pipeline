@@ -11,9 +11,10 @@ WORKDIR /app
 
 # 必要なパッケージをインストール
 RUN apt-get update && \
-    apt-get install -y git wget curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    apt-get install -y git wget curl && \
+    apt-get install -y mecab libmecab-dev mecab-ipadic-utf8  curl build-essential && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 
 COPY ./app/* /app/
