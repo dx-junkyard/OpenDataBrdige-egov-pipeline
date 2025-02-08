@@ -23,19 +23,22 @@ steps:
     skip_flg: yes
   - name: LLM Tag
     type: llm_tag_step
-    input_json_file: ./xml2json/json/min.json
+    input_json_file: ./xml2json/json/47_kensetsu_juutaku.json
     output_json_file: ./xml2json/taged_json/47_kensetsu_juutaku.json
     llm_url: http://host.docker.internal:11434/v1/
     llm_model: schroneko/llama-3.1-swallow-8b-instruct-v0.1:latest
     llm_api_key: ollama
     llm_prompt_file: ./llm_tag_prompt.txt
     skip_flg: yes
-
   - name: tf-idf Tag
     type: tfidf_tag_step
     input_json_file: ./xml2json/json/47_kensetsu_juutaku.json
     output_json_file: ./xml2json/taged_json/tfidf_47_kensetsu_juutaku.json
     exclude_words: する, ない, から, 及び, この, 又は, に関する, もの, その, による, ある, において,こと,とき
     max_tags: 10
+    skip_flg: yes
+  - name: Embedding step
+    type: embedding_step
+    law_catalog_json: ./xml2json/taged_json/tfidf_47_kensetsu_juutaku.json
+    embeddings_file: ./xml2json/taged_json/tfidf_47_kensetsu_juutaku_embedding.json
     skip_flg: no
-
