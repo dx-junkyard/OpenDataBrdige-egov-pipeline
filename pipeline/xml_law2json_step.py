@@ -7,35 +7,50 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class XmlLawToJsonStep:
     def __init__(self, step_config):
-        """
-        step_config から必要なパラメータを取得し、インスタンス変数に格納する。
-        例）
-        step_config = {
-            'xml_input_dir': 'path/to/xml_directory',
-            'json_output_file': 'merged_output.json'
-        }
-        """
         self.xml_input_dir = step_config.get('xml_input_dir', '')
         self.json_output_file = step_config.get('json_output_file', '')
+        self.keys_to_remove = step_config.get('keys_to_remove', '')
+        self.array_item = step_config.get('array_item', '')
+
+    def remove_keys(self, data, keys_to_remove):
+        """
+        指定されたキーを辞書から削除する。
+        ネストされた辞書にも対応。
+        """
+        if isinstance(data, dict):
+            return {
+                k: self.remove_keys(v, keys_to_remove)
+                for k, v in data.items() if k not in keys_to_remove
+            }
+        elif isinstance(data, list):
+            return [self.remove_keys(item, keys_to_remove) for item in data]
+        else:
+            return data
+    
+    def ensure_list_format(self, data, array_item):
+        """
+        指定されたキーについて、単一の要素であってもリストとして保持する。
+        """
+        if isinstance(data, dict):
+            return {
+                k: [v] if k in array_item and not isinstance(v, list) else self.ensure_list_format(v, array_item)
+                for k, v in data.items()
+            }
+        elif isinstance(data, list):
+            return [self.ensure_list_format(item, array_item) for item in data]
+        else:
+            return data
 
     def execute(self):
-        """
-        1) self.xml_input_dir に含まれる全XMLファイルを辞書化
-        2) それらの辞書をまとめてリスト化
-        3) ひとつのJSONファイル（self.json_output_file）に出力
-        """
         logging.info(f"XML入力ディレクトリ: {self.xml_input_dir}")
         logging.info(f"JSON出力ファイル: {self.json_output_file}")
-
-        # 出力用のリストを用意
+        
         all_data = []
 
-        # ディレクトリが存在しない場合のチェック（任意で追加）
         if not os.path.isdir(self.xml_input_dir):
             logging.error(f"指定された入力ディレクトリが存在しません: {self.xml_input_dir}")
             return
 
-        # ディレクトリ内のXMLファイルを走査
         for filename in os.listdir(self.xml_input_dir):
             if filename.lower().endswith('.xml'):
                 xml_path = os.path.join(self.xml_input_dir, filename)
@@ -44,18 +59,22 @@ class XmlLawToJsonStep:
                 try:
                     with open(xml_path, 'r', encoding='utf-8') as f:
                         data_dict = xmltodict.parse(f.read())
-                    # 変換した辞書をリストに追加
+                    
+                    if self.keys_to_remove:
+                        data_dict = self.remove_keys(data_dict, self.keys_to_remove)
+                    
+                    if self.array_item:
+                        data_dict = self.ensure_list_format(data_dict, self.array_item)
+                    
                     all_data.append(data_dict)
                 except Exception as e:
                     logging.error(f"XMLファイルの読み込み・変換中にエラーが発生しました: {xml_path}")
                     logging.error(e)
 
-        # JSON出力前に、出力先ディレクトリが存在しない場合は作成する
         output_dir = os.path.dirname(self.json_output_file)
         if output_dir and not os.path.exists(output_dir):
             os.makedirs(output_dir, exist_ok=True)
 
-        # all_data を一つのリストとして JSON 化し、ファイルへ出力
         try:
             with open(self.json_output_file, 'w', encoding='utf-8') as f:
                 json.dump(all_data, f, ensure_ascii=False, indent=2)
