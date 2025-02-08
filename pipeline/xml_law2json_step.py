@@ -11,49 +11,58 @@ class XmlLawToJsonStep:
         step_config から必要なパラメータを取得し、インスタンス変数に格納する。
         例）
         step_config = {
-            'xml_input_dir': 'path/to/your/xml_directory',
-            'json_output_dir': 'path/to/your/json_directory'
+            'xml_input_dir': 'path/to/xml_directory',
+            'json_output_file': 'merged_output.json'
         }
         """
         self.xml_input_dir = step_config.get('xml_input_dir', '')
-        self.json_output_dir = step_config.get('json_output_dir', '')
+        self.json_output_file = step_config.get('json_output_file', '')
 
     def execute(self):
         """
-        self.xml_input_dir に含まれるすべてのXMLファイルを、
-        そのまま辞書にパース→JSON化し、self.json_output_dir に書き出す。
+        1) self.xml_input_dir に含まれる全XMLファイルを辞書化
+        2) それらの辞書をまとめてリスト化
+        3) ひとつのJSONファイル（self.json_output_file）に出力
         """
         logging.info(f"XML入力ディレクトリ: {self.xml_input_dir}")
-        logging.info(f"JSON出力ディレクトリ: {self.json_output_dir}")
+        logging.info(f"JSON出力ファイル: {self.json_output_file}")
 
-        # 出力ディレクトリが存在しない場合は作成
-        if not os.path.exists(self.json_output_dir):
-            os.makedirs(self.json_output_dir)
+        # 出力用のリストを用意
+        all_data = []
 
-        # ディレクトリ内のファイル一覧を取得
+        # ディレクトリが存在しない場合のチェック（任意で追加）
+        if not os.path.isdir(self.xml_input_dir):
+            logging.error(f"指定された入力ディレクトリが存在しません: {self.xml_input_dir}")
+            return
+
+        # ディレクトリ内のXMLファイルを走査
         for filename in os.listdir(self.xml_input_dir):
-            # 拡張子が .xml のファイルに限定する（大文字小文字問わず）
             if filename.lower().endswith('.xml'):
                 xml_path = os.path.join(self.xml_input_dir, filename)
                 logging.info(f"処理対象XML: {xml_path}")
 
-                # XMLファイルを辞書として読み込み
-                with open(xml_path, 'r', encoding='utf-8') as f:
-                    data_dict = xmltodict.parse(f.read())
+                try:
+                    with open(xml_path, 'r', encoding='utf-8') as f:
+                        data_dict = xmltodict.parse(f.read())
+                    # 変換した辞書をリストに追加
+                    all_data.append(data_dict)
+                except Exception as e:
+                    logging.error(f"XMLファイルの読み込み・変換中にエラーが発生しました: {xml_path}")
+                    logging.error(e)
 
-                # JSON文字列に変換
-                json_data = json.dumps(data_dict, ensure_ascii=False, indent=2)
+        # JSON出力前に、出力先ディレクトリが存在しない場合は作成する
+        output_dir = os.path.dirname(self.json_output_file)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
 
-                # 出力先のJSONファイル名を決定（拡張子を .json に）
-                base_name, _ = os.path.splitext(filename)
-                json_filename = base_name + ".json"
-                json_path = os.path.join(self.json_output_dir, json_filename)
+        # all_data を一つのリストとして JSON 化し、ファイルへ出力
+        try:
+            with open(self.json_output_file, 'w', encoding='utf-8') as f:
+                json.dump(all_data, f, ensure_ascii=False, indent=2)
+            logging.info(f"JSON出力完了: {self.json_output_file}")
+        except Exception as e:
+            logging.error(f"JSONファイルの書き込み中にエラーが発生しました: {self.json_output_file}")
+            logging.error(e)
 
-                # ファイルへ出力
-                with open(json_path, 'w', encoding='utf-8') as f:
-                    f.write(json_data)
-
-                logging.info(f"→ JSON出力完了: {json_path}")
-
-        logging.info("XML→JSON変換が完了しました。")
+        logging.info("XML→JSON変換（全ファイルまとめて）が完了しました。")
 
